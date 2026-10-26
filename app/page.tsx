@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatDate, formatNumber, MeterReading, parseMeterCsv, toDate } from '../lib/data';
+import { lookupCommercialAccount } from '../lib/account-map';
+import { lookupProperty } from '../lib/property-map';
 
 const DATA_FILE = '/data/AiM_meter_readings_2026-10-26.csv';
 
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showOnlyExceptions, setShowOnlyExceptions] = useState(false);
+  const [mappingSearch, setMappingSearch] = useState('');
 
   useEffect(() => {
     fetch(DATA_FILE).then((response) => response.text()).then((csv) => setReadings(parseMeterCsv(csv)));
@@ -76,15 +79,50 @@ export default function Dashboard() {
   const maxMeter = Math.max(...topMeters.map(([, value]) => value), 1);
   const recent = [...filtered].sort((a, b) => (toDate(b.readingDate)?.getTime() || 0) - (toDate(a.readingDate)?.getTime() || 0)).slice(0, 10);
 
+  const buildingRows = useMemo(() => {
+    const grouped = new Map<string, { code: string; meters: Set<string>; readings: number; utilities: Set<string> }>();
+    readings.forEach((row) => {
+      const property = row.asset?.property;
+      if (!property) return;
+      const existing = grouped.get(property) || { code: property, meters: new Set<string>(), readings: 0, utilities: new Set<string>() };
+      existing.meters.add(row.asset?.asset || row.meter);
+      existing.readings += 1;
+      existing.utilities.add(row.asset?.assetType || 'Other');
+      grouped.set(property, existing);
+    });
+    return Array.from(grouped.values()).filter((row) => {
+      const info = lookupProperty(row.code);
+      return !mappingSearch || `${row.code} ${info?.name || ''} ${info?.use || ''}`.toLowerCase().includes(mappingSearch.toLowerCase());
+    }).sort((a, b) => (lookupProperty(a.code)?.name || a.code).localeCompare(lookupProperty(b.code)?.name || b.code));
+  }, [readings, mappingSearch]);
+
+  const accountRows = useMemo(() => {
+    const grouped = new Map<string, { account: string; meters: Set<string>; properties: Set<string>; readings: number; utilities: Set<string> }>();
+    readings.forEach((row) => {
+      const account = row.asset?.parentCommercialMeter;
+      if (!account) return;
+      const existing = grouped.get(account) || { account, meters: new Set<string>(), properties: new Set<string>(), readings: 0, utilities: new Set<string>() };
+      existing.meters.add(row.asset?.asset || row.meter);
+      if (row.asset?.property) existing.properties.add(row.asset.property);
+      existing.readings += 1;
+      if (row.asset?.assetType) existing.utilities.add(row.asset.assetType);
+      grouped.set(account, existing);
+    });
+    return Array.from(grouped.values()).filter((row) => {
+      const info = lookupCommercialAccount(row.account);
+      return !mappingSearch || `${row.account} ${info?.description || ''} ${info?.utilityType || ''} ${info?.rate || ''}`.toLowerCase().includes(mappingSearch.toLowerCase());
+    }).sort((a, b) => b.meters.size - a.meters.size);
+  }, [readings, mappingSearch]);
+
   function resetFilters() {
-    setSelectedUom('KWH'); setSelectedMeter('All meters'); setSearch(''); setStartDate(''); setEndDate(''); setShowOnlyExceptions(false);
+    setSelectedUom('KWH'); setSelectedMeter('All meters'); setSearch(''); setStartDate(''); setEndDate(''); setShowOnlyExceptions(false); setMappingSearch('');
   }
 
   return (
     <main className="shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">A</div><div><strong>AiM</strong><span>Meter intelligence</span></div></div>
-        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
+        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
         <div className="sidebar-bottom"><div className="sync-dot" /> <div><small>Data source</small><strong>AssetWorks AiM</strong><span>Synced Oct 26, 2026</span></div></div>
       </aside>
       <section className="content">
@@ -100,6 +138,7 @@ export default function Dashboard() {
         </div>
         <div className="result-line"><span>Showing <strong>{formatNumber(filtered.length)}</strong> readings {selectedUom !== 'All units' ? `normalized to ${selectedUom}` : 'across all utilities'}</span><span className="result-note">{summary.exceptions ? `${formatNumber(summary.exceptions)} need review` : 'No exceptions in view'}</span></div>
         <section id="overview" className="kpis"><article><span className="kpi-label">Total usage</span><strong>{compact(summary.usage)}</strong><small>{summary.units.length === 1 ? summary.units[0] : 'normalized units'} · selected range</small></article><article><span className="kpi-label">Readings</span><strong>{formatNumber(filtered.length)}</strong><small>{summary.meters} active meters</small></article><article><span className="kpi-label">Mapped</span><strong>{filtered.length ? `${Math.round(summary.mapped / filtered.length * 100)}%` : '—'}</strong><small>{formatNumber(summary.mapped)} of {formatNumber(filtered.length)} readings</small></article><article className={summary.exceptions ? 'warning' : ''}><span className="kpi-label">Exceptions</span><strong>{formatNumber(summary.exceptions)}</strong><small>{summary.exceptions ? 'Adjusted or unverified' : 'Everything looks clean'}</small></article></section>
+        <section id="mapping" className="mapping-section"><div className="mapping-intro"><div><p className="eyebrow">ASSET HIERARCHY</p><h2>Buildings & commercial accounts</h2><p>Trace each reading from its physical building to the parent utility account. Search by property, asset, account, utility, or rate.</p></div><label className="mapping-search"><span>⌕</span><input value={mappingSearch} onChange={(e) => setMappingSearch(e.target.value)} placeholder="Search the mapping" /></label></div><div className="mapping-grid"><article className="card mapping-card"><div className="card-head"><div><p className="eyebrow">BUILDINGS</p><h2>{buildingRows.length} mapped properties</h2></div><span className="unit-tag">{new Set(readings.flatMap((row) => row.asset?.asset ? [row.asset.asset] : [])).size} assets</span></div><div className="mapping-list">{buildingRows.map((row) => { const info = lookupProperty(row.code); return <div className="mapping-row" key={row.code}><div className="mapping-icon">⌂</div><div className="mapping-main"><div><strong>{info?.name || row.code}</strong><span>{row.code} · {info?.use || 'Property'}</span></div><small>{row.meters.size} meters · {formatNumber(row.readings)} readings · {Array.from(row.utilities).join(' / ')}</small></div></div>; })}</div></article><article className="card mapping-card"><div className="card-head"><div><p className="eyebrow">PARENT ACCOUNTS</p><h2>{accountRows.length} commercial accounts</h2></div><span className="unit-tag">Roll-ups</span></div><div className="mapping-list">{accountRows.map((row) => { const info = lookupCommercialAccount(row.account); return <div className="account-row" key={row.account}><div className="account-badge">{info?.utilityType?.startsWith('NATURAL') ? 'G' : 'E'}</div><div className="mapping-main"><div><strong>{row.account}</strong><span>{info?.description || 'Commercial account'}</span></div><small>{row.meters.size} meters · {row.properties.size} properties · {info?.rate || 'Rate not provided'}</small></div><span className="account-type">{info?.utilityType?.replace('-7460', '').replace('-7450', '') || Array.from(row.utilities).join(' / ')}</span></div>; })}</div></article></div></section>
         <section className="grid-two"><article className="card chart-card"><div className="card-head"><div><p className="eyebrow">TREND</p><h2>Usage by month</h2></div><span className="unit-tag">{selectedUom === 'All units' ? 'Normalized units' : selectedUom}</span></div>{monthly.length ? <div className="bar-chart" aria-label="Monthly usage chart">{monthly.map((item) => <div className="bar-wrap" key={item.label} title={`${item.label}: ${formatNumber(item.usage, 1)}`}><div className="bar" style={{ height: `${Math.max(item.usage / maxMonthly * 100, 3)}%` }} /><span>{item.label}</span></div>)}</div> : <div className="empty">No readings match these filters.</div>}</article><article id="meters" className="card"><div className="card-head"><div><p className="eyebrow">RANKING</p><h2>Highest usage meters</h2></div><span className="muted">Top 8</span></div><div className="meter-list">{topMeters.map(([meter, value], index) => <div className="meter-row" key={meter}><span className="rank">0{index + 1}</span><div className="meter-info"><div><strong>{meter}</strong><span>{compact(value)} {selectedUom === 'All units' ? 'normalized' : selectedUom}</span></div><div className="meter-track"><i style={{ width: `${value / maxMeter * 100}%` }} /></div></div></div>)}</div></article></section>
         <section id="readings" className="card table-card"><div className="card-head"><div><p className="eyebrow">LATEST ACTIVITY</p><h2>Recent readings</h2></div><span className="muted">Latest 10 by reading date · normalized and mapped</span></div><div className="table-wrap"><table><thead><tr><th>Asset / meter</th><th>Property</th><th>Parent commercial meter</th><th>Reading date</th><th>Unit</th><th>Usage</th><th>Status</th><th /></tr></thead><tbody>{recent.map((row) => <tr key={`${row.meter}-${row.readingDate}-${row.invoiceDate}`}><td><strong>{row.asset?.asset || 'Unmapped'}</strong><small>{row.meter} · {row.asset?.assetType || 'Needs mapping'}</small></td><td>{row.asset?.property || '—'}</td><td>{row.asset?.parentCommercialMeter || '—'}</td><td>{formatDate(row.readingDate)}</td><td><span className="unit-tag">{row.normalizedUom}</span></td><td className="usage-cell">{formatNumber(row.normalizedUsage, 1)}</td><td><span className={`status ${row.verified && !row.adjusted ? 'verified' : 'review'}`}><i />{row.adjusted ? 'Adjusted' : row.verified ? 'Verified' : 'Review'}</span></td><td><a className="source-link" href={row.sourceUrl} target="_blank" rel="noreferrer">↗</a></td></tr>)}</tbody></table>{!recent.length && <div className="empty">No readings match these filters.</div>}</div></section>
         <footer>AiM Meter Intelligence <span>•</span> Built for facilities operations <span>•</span> Source: AssetWorks AiM export</footer>
