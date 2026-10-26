@@ -9,6 +9,7 @@ A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
 - Automatic normalization: MWH/GWH are converted to KWH, and CF is converted to CCF. Water readings in GAL remain GAL.
 - Monthly usage trend, highest-usage meter ranking, verification KPIs, and recent-reading table.
 - Source links back to the AiM meter-reading record when available.
+- Asset mapping for electric, gas, and water meters, including property and parent commercial meter.
 - The supplied CSV is served from `public/data`, so the dashboard can deploy to Vercel with no database.
 
 ## Run locally
@@ -28,6 +29,8 @@ Open http://localhost:3000.
 4. Deploy.
 
 No environment variables are required for this static export-backed dashboard.
+
+The provided property/building context is retained at `public/data/property-context.md`. Meters that do not appear in the supplied asset map remain labeled `Unmapped` so they can be reviewed without inventing an association.
 
 ## Updating the data
 

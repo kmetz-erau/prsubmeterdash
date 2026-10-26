@@ -1,5 +1,8 @@
+import { lookupMeterAsset, type MeterAsset } from './meter-map';
+
 export type MeterReading = {
   meter: string;
+  asset?: MeterAsset;
   uom: string;
   normalizedUom: string;
   normalizedUsage: number;
@@ -61,6 +64,7 @@ export function parseMeterCsv(csv: string): MeterReading[] {
     const normalized = normalizeUsage(uom, usage);
     return {
       meter: cells[0] || 'Unknown',
+      asset: lookupMeterAsset(cells[0] || ''),
       uom,
       ...normalized,
       readingDate: cells[2] || '',
