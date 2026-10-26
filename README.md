@@ -5,7 +5,8 @@ A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
 ## What is included
 
 - Interactive filtering by unit, meter, search term, date range, and exceptions.
-- Unit-aware usage totals so KWH, GAL, CF, CCF, MWH, and GWH are not silently combined.
+- Normalized usage totals so electricity is reported in KWH and natural gas in CCF; water remains in GAL.
+- Automatic normalization: MWH/GWH are converted to KWH, and CF is converted to CCF. Water readings in GAL remain GAL.
 - Monthly usage trend, highest-usage meter ranking, verification KPIs, and recent-reading table.
 - Source links back to the AiM meter-reading record when available.
 - The supplied CSV is served from `public/data`, so the dashboard can deploy to Vercel with no database.
@@ -31,3 +32,14 @@ No environment variables are required for this static export-backed dashboard.
 ## Updating the data
 
 Replace `public/data/AiM_meter_readings_2026-10-26.csv` with a new export using the same column headers, commit, and redeploy. For an automated pipeline, the next step would be moving the CSV to Blob Storage or a database and replacing the client-side fetch in `app/page.tsx` with a server/API data source.
+
+## Normalization rules
+
+| Source unit | Dashboard unit | Factor |
+| --- | --- | ---: |
+| KWH | KWH | 1 |
+| MWH | KWH | 1,000 |
+| GWH | KWH | 1,000,000 |
+| CF | CCF | 0.01 |
+| CCF | CCF | 1 |
+| GAL | GAL | 1 |

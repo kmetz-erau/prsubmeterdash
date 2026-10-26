@@ -29,12 +29,12 @@ export default function Dashboard() {
     fetch(DATA_FILE).then((response) => response.text()).then((csv) => setReadings(parseMeterCsv(csv)));
   }, []);
 
-  const uoms = useMemo(() => Array.from(new Set(readings.map((row) => row.uom))).sort(), [readings]);
-  const meters = useMemo(() => Array.from(new Set(readings.filter((row) => !selectedUom || row.uom === selectedUom).map((row) => row.meter))).sort(), [readings, selectedUom]);
+  const uoms = useMemo(() => Array.from(new Set(readings.map((row) => row.normalizedUom))).sort(), [readings]);
+  const meters = useMemo(() => Array.from(new Set(readings.filter((row) => !selectedUom || row.normalizedUom === selectedUom).map((row) => row.meter))).sort(), [readings, selectedUom]);
 
   const filtered = useMemo(() => readings.filter((row) => {
     const date = toDate(row.readingDate);
-    const matchesUom = selectedUom === 'All units' || row.uom === selectedUom;
+    const matchesUom = selectedUom === 'All units' || row.normalizedUom === selectedUom;
     const matchesMeter = selectedMeter === 'All meters' || row.meter === selectedMeter;
     const haystack = `${row.meter} ${row.description} ${row.readerId}`.toLowerCase();
     const matchesSearch = !search || haystack.includes(search.toLowerCase());
@@ -45,8 +45,8 @@ export default function Dashboard() {
   }), [readings, selectedUom, selectedMeter, search, startDate, endDate, showOnlyExceptions]);
 
   const summary = useMemo(() => {
-    const usage = filtered.reduce((sum, row) => sum + row.usage, 0);
-    const units = Array.from(new Set(filtered.map((row) => row.uom)));
+    const usage = filtered.reduce((sum, row) => sum + row.normalizedUsage, 0);
+    const units = Array.from(new Set(filtered.map((row) => row.normalizedUom)));
     const verified = filtered.filter((row) => row.verified).length;
     const exceptions = filtered.filter((row) => row.adjusted || !row.verified || row.error).length;
     return { usage, units, verified, exceptions, meters: new Set(filtered.map((row) => row.meter)).size };
@@ -59,7 +59,7 @@ export default function Dashboard() {
       if (!date) return;
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const previous = grouped.get(key) || { label: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), usage: 0, count: 0 };
-      previous.usage += row.usage;
+      previous.usage += row.normalizedUsage;
       previous.count += 1;
       grouped.set(key, previous);
     });
@@ -68,7 +68,7 @@ export default function Dashboard() {
 
   const topMeters = useMemo(() => {
     const grouped = new Map<string, number>();
-    filtered.forEach((row) => grouped.set(row.meter, (grouped.get(row.meter) || 0) + row.usage));
+    filtered.forEach((row) => grouped.set(row.meter, (grouped.get(row.meter) || 0) + row.normalizedUsage));
     return Array.from(grouped.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
   }, [filtered]);
 
@@ -98,10 +98,10 @@ export default function Dashboard() {
           <label><span>To</span><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
           <button className={`exception-toggle ${showOnlyExceptions ? 'on' : ''}`} onClick={() => setShowOnlyExceptions(!showOnlyExceptions)}><span className="toggle-dot" /> Exceptions only</button>
         </div>
-        <div className="result-line"><span>Showing <strong>{formatNumber(filtered.length)}</strong> readings {selectedUom !== 'All units' ? `in ${selectedUom}` : 'across all units'}</span><span className="result-note">{summary.exceptions ? `${formatNumber(summary.exceptions)} need review` : 'No exceptions in view'}</span></div>
+        <div className="result-line"><span>Showing <strong>{formatNumber(filtered.length)}</strong> readings {selectedUom !== 'All units' ? `normalized to ${selectedUom}` : 'across all utilities'}</span><span className="result-note">{summary.exceptions ? `${formatNumber(summary.exceptions)} need review` : 'No exceptions in view'}</span></div>
         <section id="overview" className="kpis"><article><span className="kpi-label">Total usage</span><strong>{compact(summary.usage)}</strong><small>{summary.units.length === 1 ? summary.units[0] : 'mixed units'} · selected range</small></article><article><span className="kpi-label">Readings</span><strong>{formatNumber(filtered.length)}</strong><small>{summary.meters} active meters</small></article><article><span className="kpi-label">Verified</span><strong>{filtered.length ? `${Math.round(summary.verified / filtered.length * 100)}%` : '—'}</strong><small>{formatNumber(summary.verified)} of {formatNumber(filtered.length)} readings</small></article><article className={summary.exceptions ? 'warning' : ''}><span className="kpi-label">Exceptions</span><strong>{formatNumber(summary.exceptions)}</strong><small>{summary.exceptions ? 'Adjusted or unverified' : 'Everything looks clean'}</small></article></section>
-        <section className="grid-two"><article className="card chart-card"><div className="card-head"><div><p className="eyebrow">TREND</p><h2>Usage by month</h2></div><span className="unit-tag">{selectedUom === 'All units' ? 'All units' : selectedUom}</span></div>{monthly.length ? <div className="bar-chart" aria-label="Monthly usage chart">{monthly.map((item) => <div className="bar-wrap" key={item.label} title={`${item.label}: ${formatNumber(item.usage, 1)}`}><div className="bar" style={{ height: `${Math.max(item.usage / maxMonthly * 100, 3)}%` }} /><span>{item.label}</span></div>)}</div> : <div className="empty">No readings match these filters.</div>}</article><article id="meters" className="card"><div className="card-head"><div><p className="eyebrow">RANKING</p><h2>Highest usage meters</h2></div><span className="muted">Top 8</span></div><div className="meter-list">{topMeters.map(([meter, value], index) => <div className="meter-row" key={meter}><span className="rank">0{index + 1}</span><div className="meter-info"><div><strong>{meter}</strong><span>{compact(value)} {selectedUom === 'All units' ? '' : selectedUom}</span></div><div className="meter-track"><i style={{ width: `${value / maxMeter * 100}%` }} /></div></div></div>)}</div></article></section>
-        <section id="readings" className="card table-card"><div className="card-head"><div><p className="eyebrow">LATEST ACTIVITY</p><h2>Recent readings</h2></div><span className="muted">Latest 10 by reading date</span></div><div className="table-wrap"><table><thead><tr><th>Meter</th><th>Reading date</th><th>Unit</th><th>Usage</th><th>Reader</th><th>Status</th><th /></tr></thead><tbody>{recent.map((row) => <tr key={`${row.meter}-${row.readingDate}-${row.invoiceDate}`}><td><strong>{row.meter}</strong><small>{row.description.replace(/-METER READING/i, '').replace(/-ELECTRIC/i, ' electric')}</small></td><td>{formatDate(row.readingDate)}</td><td><span className="unit-tag">{row.uom}</span></td><td className="usage-cell">{formatNumber(row.usage, 1)}</td><td>{shortName(row.readerId)}</td><td><span className={`status ${row.verified && !row.adjusted ? 'verified' : 'review'}`}><i />{row.adjusted ? 'Adjusted' : row.verified ? 'Verified' : 'Review'}</span></td><td><a className="source-link" href={row.sourceUrl} target="_blank" rel="noreferrer">↗</a></td></tr>)}</tbody></table>{!recent.length && <div className="empty">No readings match these filters.</div>}</div></section>
+        <section className="grid-two"><article className="card chart-card"><div className="card-head"><div><p className="eyebrow">TREND</p><h2>Usage by month</h2></div><span className="unit-tag">{selectedUom === 'All units' ? 'Normalized units' : selectedUom}</span></div>{monthly.length ? <div className="bar-chart" aria-label="Monthly usage chart">{monthly.map((item) => <div className="bar-wrap" key={item.label} title={`${item.label}: ${formatNumber(item.usage, 1)}`}><div className="bar" style={{ height: `${Math.max(item.usage / maxMonthly * 100, 3)}%` }} /><span>{item.label}</span></div>)}</div> : <div className="empty">No readings match these filters.</div>}</article><article id="meters" className="card"><div className="card-head"><div><p className="eyebrow">RANKING</p><h2>Highest usage meters</h2></div><span className="muted">Top 8</span></div><div className="meter-list">{topMeters.map(([meter, value], index) => <div className="meter-row" key={meter}><span className="rank">0{index + 1}</span><div className="meter-info"><div><strong>{meter}</strong><span>{compact(value)} {selectedUom === 'All units' ? 'normalized' : selectedUom}</span></div><div className="meter-track"><i style={{ width: `${value / maxMeter * 100}%` }} /></div></div></div>)}</div></article></section>
+        <section id="readings" className="card table-card"><div className="card-head"><div><p className="eyebrow">LATEST ACTIVITY</p><h2>Recent readings</h2></div><span className="muted">Latest 10 by reading date · normalized</span></div><div className="table-wrap"><table><thead><tr><th>Meter</th><th>Reading date</th><th>Unit</th><th>Usage</th><th>Reader</th><th>Status</th><th /></tr></thead><tbody>{recent.map((row) => <tr key={`${row.meter}-${row.readingDate}-${row.invoiceDate}`}><td><strong>{row.meter}</strong><small>{row.description.replace(/-METER READING/i, '').replace(/-ELECTRIC/i, ' electric')}</small></td><td>{formatDate(row.readingDate)}</td><td><span className="unit-tag">{row.normalizedUom}</span></td><td className="usage-cell">{formatNumber(row.normalizedUsage, 1)}</td><td>{shortName(row.readerId)}</td><td><span className={`status ${row.verified && !row.adjusted ? 'verified' : 'review'}`}><i />{row.adjusted ? 'Adjusted' : row.verified ? 'Verified' : 'Review'}</span></td><td><a className="source-link" href={row.sourceUrl} target="_blank" rel="noreferrer">↗</a></td></tr>)}</tbody></table>{!recent.length && <div className="empty">No readings match these filters.</div>}</div></section>
         <footer>AiM Meter Intelligence <span>•</span> Built for facilities operations <span>•</span> Source: AssetWorks AiM export</footer>
       </section>
     </main>

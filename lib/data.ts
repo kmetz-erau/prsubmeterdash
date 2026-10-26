@@ -1,6 +1,9 @@
 export type MeterReading = {
   meter: string;
   uom: string;
+  normalizedUom: string;
+  normalizedUsage: number;
+  conversionFactor: number;
   readingDate: string;
   billingPeriod: string;
   readerId: string;
@@ -41,19 +44,30 @@ function numberValue(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeUsage(uom: string, usage: number) {
+  if (uom === 'MWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000, conversionFactor: 1_000 };
+  if (uom === 'GWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000_000, conversionFactor: 1_000_000 };
+  if (uom === 'CF') return { normalizedUom: 'CCF', normalizedUsage: usage / 100, conversionFactor: 0.01 };
+  return { normalizedUom: uom, normalizedUsage: usage, conversionFactor: 1 };
+}
+
 export function parseMeterCsv(csv: string): MeterReading[] {
   const lines = csv.split(/\r?\n/).filter(Boolean);
   if (!lines.length) return [];
   return lines.slice(1).map((line) => {
     const cells = splitCsvLine(line);
+    const uom = cells[1] || 'Unknown';
+    const usage = numberValue(cells[10] || '');
+    const normalized = normalizeUsage(uom, usage);
     return {
       meter: cells[0] || 'Unknown',
-      uom: cells[1] || 'Unknown',
+      uom,
+      ...normalized,
       readingDate: cells[2] || '',
       billingPeriod: cells[3] || '',
       readerId: cells[5] || '',
       description: cells[7] || '',
-      usage: numberValue(cells[10] || ''),
+      usage,
       adjusted: cells[11] === 'Yes',
       verified: cells[12] === 'Yes',
       invoiceDate: cells[13] || '',
