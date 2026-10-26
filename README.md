@@ -1,0 +1,33 @@
+# AiM Meter Intelligence Dashboard
+
+A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
+
+## What is included
+
+- Interactive filtering by unit, meter, search term, date range, and exceptions.
+- Unit-aware usage totals so KWH, GAL, CF, CCF, MWH, and GWH are not silently combined.
+- Monthly usage trend, highest-usage meter ranking, verification KPIs, and recent-reading table.
+- Source links back to the AiM meter-reading record when available.
+- The supplied CSV is served from `public/data`, so the dashboard can deploy to Vercel with no database.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
+
+## Deploy to Vercel
+
+1. Push this folder to GitHub.
+2. In Vercel, choose **New Project** and import the repository.
+3. Keep the defaults: Vercel detects Next.js automatically.
+4. Deploy.
+
+No environment variables are required for this static export-backed dashboard.
+
+## Updating the data
+
+Replace `public/data/AiM_meter_readings_2026-10-26.csv` with a new export using the same column headers, commit, and redeploy. For an automated pipeline, the next step would be moving the CSV to Blob Storage or a database and replacing the client-side fetch in `app/page.tsx` with a server/API data source.
