@@ -10,6 +10,7 @@ A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
 - Monthly usage trend, highest-usage meter ranking, verification KPIs, and recent-reading table.
 - Source links back to the AiM meter-reading record when available.
 - Asset mapping for electric, gas, and water meters, including property and parent commercial meter.
+- Buildings & commercial accounts explorer with searchable property roll-ups and utility-rate details.
 - The supplied CSV is served from `public/data`, so the dashboard can deploy to Vercel with no database.
 
 ## Run locally
