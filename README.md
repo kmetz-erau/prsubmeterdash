@@ -11,7 +11,7 @@ A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
 - Source links back to the AiM meter-reading record when available.
 - Asset mapping for electric, gas, and water meters, including property and parent commercial meter.
 - Buildings & commercial accounts explorer with searchable property roll-ups and utility-rate details.
-- NOAA/NWS weather normalization page with forecast-backed HDD/CDD adjustments by building-use category.
+- NOAA Climate Data Online historical weather normalization page with HDD/CDD adjustments by building and building-use category.
 - The supplied CSV is served from `public/data`, so the dashboard can deploy to Vercel with no database.
 
 ## Run locally
@@ -30,9 +30,9 @@ Open http://localhost:3000.
 3. Keep the defaults: Vercel detects Next.js automatically.
 4. Deploy.
 
-No environment variables are required for this static export-backed dashboard.
+The static meter dashboard requires no environment variables. The historical weather page requires `NOAA_CDO_TOKEN` for NOAA Climate Data Online access.
 
-The weather page uses the NOAA/NWS API through `/api/weather`. Optional environment variables are `NOAA_USER_AGENT`, `WEATHER_LAT`, and `WEATHER_LON`; the defaults point to the ERAU Prescott campus area.
+The weather page uses NOAA Climate Data Online through `/api/weather`. Add `NOAA_CDO_TOKEN` in Vercel environment variables. Optional `NOAA_CDO_LOCATION` defaults to `ZIP:86301` for Prescott, Arizona. Historical data is requested in sub-year chunks to respect NOAA CDO limits.
 
 The provided property/building context is retained at `public/data/property-context.md`. Meters that do not appear in the supplied asset map remain labeled `Unmapped` so they can be reviewed without inventing an association.
 
