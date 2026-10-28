@@ -72,6 +72,14 @@ export async function GET(request: Request) {
       daily.set(date, row);
     });
 
+    // Some GHCND stations provide TAVG but not HTDD/CLDD. Derive the missing
+    // degree-day values from the daily average using the standard 65°F base.
+    daily.forEach((row) => {
+      if (row.tavg === undefined) return;
+      if (row.hdd === 0) row.hdd = Math.max(65 - row.tavg, 0);
+      if (row.cdd === 0) row.cdd = Math.max(row.tavg - 65, 0);
+    });
+
     return NextResponse.json({ station: { id: station.id, name: station.name, location }, start, end, updatedAt: new Date().toISOString(), daily: Array.from(daily.values()).sort((a, b) => a.date.localeCompare(b.date)) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to load NOAA historical weather data' }, { status: 502 });
