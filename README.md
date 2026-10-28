@@ -30,9 +30,9 @@ Open http://localhost:3000.
 3. Keep the defaults: Vercel detects Next.js automatically.
 4. Deploy.
 
-The static meter dashboard requires no environment variables. The historical weather page requires `NOAA_CDO_TOKEN` for NOAA Climate Data Online access.
+The dashboard works without environment variables. Historical weather defaults to NOAA's public NCEI daily summary service and Prescott station `USC00026796`.
 
-The weather page uses NOAA Climate Data Online through `/api/weather`. Add `NOAA_CDO_TOKEN` in Vercel environment variables. Optional `NOAA_CDO_LOCATION` defaults to `ZIP:86301` for Prescott, Arizona. Historical data is requested in sub-year chunks to respect NOAA CDO limits.
+The weather page uses NOAA NCEI's public Access Data Service through `/api/weather`. Optional `NOAA_STATION_ID` can override the default Prescott station `USC00026796`. Historical data is requested in sub-year chunks.
 
 The provided property/building context is retained at `public/data/property-context.md`. Meters that do not appear in the supplied asset map remain labeled `Unmapped` so they can be reviewed without inventing an association.
 
