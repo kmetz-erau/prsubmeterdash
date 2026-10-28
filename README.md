@@ -32,7 +32,7 @@ Open http://localhost:3000.
 
 The dashboard works without environment variables. Historical weather defaults to NOAA's public NCEI daily summary service and Prescott station `USC00026796`.
 
-The weather page uses NOAA NCEI's public Access Data Service through `/api/weather`. Optional `NOAA_STATION_ID` can override the default Prescott station `USC00026796`. Historical data is requested in sub-year chunks.
+The weather page uses NOAA NCEI's public Access Data Service through `/api/weather` for the rolling last 30 days. Optional `NOAA_STATION_ID` can override the default Prescott station `USC00026796`.
 
 The provided property/building context is retained at `public/data/property-context.md`. Meters that do not appear in the supplied asset map remain labeled `Unmapped` so they can be reviewed without inventing an association.
 
