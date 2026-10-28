@@ -144,7 +144,7 @@ export default function Dashboard() {
     <main className="shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">A</div><div><strong>AiM</strong><span>Meter intelligence</span></div></div>
-        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="/buildings"><span>⌘</span> Building rankings</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
+        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="/buildings"><span>⌘</span> Building rankings</a><a href="/weather"><span>☼</span> Weather normalization</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
         <div className="sidebar-bottom"><div className="sync-dot" /> <div><small>Data source</small><strong>AssetWorks AiM</strong><span>Synced Oct 26, 2026</span></div></div>
       </aside>
       <section className="content">
