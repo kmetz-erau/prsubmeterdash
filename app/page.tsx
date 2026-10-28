@@ -33,6 +33,20 @@ export default function Dashboard() {
     fetch(DATA_FILE).then((response) => response.text()).then((csv) => setReadings(parseMeterCsv(csv)));
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const property = params.get('property');
+    const use = params.get('use');
+    if (property) {
+      setSelectedMapping({ kind: 'building', value: property });
+      setSelectedUom('All units');
+    }
+    if (use) {
+      setMappingSearch(use);
+      document.getElementById('mapping')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
   const uoms = useMemo(() => Array.from(new Set(readings.map((row) => row.normalizedUom))).sort(), [readings]);
   const meters = useMemo(() => Array.from(new Set(readings.filter((row) => !selectedUom || row.normalizedUom === selectedUom).map((row) => row.meter))).sort(), [readings, selectedUom]);
 
@@ -130,7 +144,7 @@ export default function Dashboard() {
     <main className="shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">A</div><div><strong>AiM</strong><span>Meter intelligence</span></div></div>
-        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
+        <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="/buildings"><span>⌘</span> Building rankings</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
         <div className="sidebar-bottom"><div className="sync-dot" /> <div><small>Data source</small><strong>AssetWorks AiM</strong><span>Synced Oct 26, 2026</span></div></div>
       </aside>
       <section className="content">
