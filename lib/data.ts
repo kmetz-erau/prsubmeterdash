@@ -17,6 +17,8 @@ export type MeterReading = {
   invoiceDate: string;
   sourceUrl: string;
   error: string;
+  previousReading?: number;
+  currentReading?: number;
 };
 
 function splitCsvLine(line: string): string[] {
@@ -47,6 +49,34 @@ function numberValue(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function parseReadingPair(value: string, reportedUsage: number) {
+  const compact = value.replace(/,/g, '').trim();
+  if (!compact || !compact.includes('.')) return null;
+
+  const candidates: Array<{ previous: number; current: number; error: number }> = [];
+  for (let split = 1; split < compact.length; split += 1) {
+    const previous = Number(compact.slice(0, split));
+    const current = Number(compact.slice(split));
+    if (!Number.isFinite(previous) || !Number.isFinite(current) || current < previous) continue;
+    const difference = current - previous;
+    if (difference <= 0) continue;
+
+    // The export's Usage field is not consistently scaled for MWH meters.
+    // Match the displayed readings against common scale factors so the
+    // interval difference remains authoritative when it is available.
+    const scales = [1, 0.1, 0.01, 0.001, 10, 100, 1_000, 1_000_000];
+    const error = Math.min(...scales.map((scale) => Math.abs(difference - reportedUsage * scale)));
+    candidates.push({ previous, current, error });
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((left, right) => left.error - right.error);
+  const best = candidates[0];
+  return best.error < Math.max(0.000001, Math.abs(reportedUsage) * 0.000001)
+    ? { previous: best.previous, current: best.current }
+    : null;
+}
+
 function normalizeUsage(uom: string, usage: number) {
   if (uom === 'MWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000, conversionFactor: 1_000 };
   if (uom === 'GWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000_000, conversionFactor: 1_000_000 };
@@ -61,7 +91,9 @@ export function parseMeterCsv(csv: string): MeterReading[] {
     const cells = splitCsvLine(line);
     const uom = cells[1] || 'Unknown';
     const usage = numberValue(cells[10] || '');
-    const normalized = normalizeUsage(uom, usage);
+    const pair = parseReadingPair(cells[8] || '', usage);
+    const measuredUsage = pair ? pair.current - pair.previous : usage;
+    const normalized = normalizeUsage(uom, measuredUsage);
     return {
       meter: cells[0] || 'Unknown',
       asset: lookupMeterAsset(cells[0] || ''),
@@ -72,6 +104,8 @@ export function parseMeterCsv(csv: string): MeterReading[] {
       readerId: cells[5] || '',
       description: cells[7] || '',
       usage,
+      previousReading: pair?.previous,
+      currentReading: pair?.current,
       adjusted: cells[11] === 'Yes',
       verified: cells[12] === 'Yes',
       invoiceDate: cells[13] || '',
