@@ -1,5 +1,9 @@
 # AiM Meter Intelligence Dashboard
 
+## Corrected reading-difference build
+
+This build calculates usage from meter reading differences when the export provides usable previous/current readings. It also prevents malformed MWH fallback rows from being multiplied by 1,000 twice.
+
 A Vercel-ready Next.js dashboard for the AssetWorks AiM meter-readings export.
 
 ## What is included

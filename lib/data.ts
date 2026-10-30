@@ -93,7 +93,11 @@ export function parseMeterCsv(csv: string): MeterReading[] {
     const usage = numberValue(cells[10] || '');
     const pair = parseReadingPair(cells[8] || '', usage);
     const measuredUsage = pair ? pair.current - pair.previous : usage;
-    const normalized = normalizeUsage(uom, measuredUsage);
+    // For MWH rows with unusable combined readings, the export's Usage field
+    // is already expressed in KWH. Do not apply the MWH multiplier twice.
+    const normalized = !pair && uom === 'MWH'
+      ? { normalizedUom: 'KWH', normalizedUsage: usage, conversionFactor: 1 }
+      : normalizeUsage(uom, measuredUsage);
     return {
       meter: cells[0] || 'Unknown',
       asset: lookupMeterAsset(cells[0] || ''),
