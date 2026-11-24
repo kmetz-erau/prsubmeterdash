@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatNumber, MeterReading, parseMeterCsv } from '../../lib/data';
 import { lookupProperty } from '../../lib/property-map';
 
-const DATA_FILE = '/data/AiM_meter_readings_2026-10-26.csv';
+const DATA_FILE = '/api/meter-data';
 
 function compact(value: number) {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
