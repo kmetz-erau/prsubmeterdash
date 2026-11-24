@@ -42,7 +42,7 @@ The provided property/building context is retained at `public/data/property-cont
 
 ## Updating the data
 
-Replace `public/data/AiM_meter_readings_2026-10-26.csv` with a new export using the same column headers, commit, and redeploy. For an automated pipeline, the next step would be moving the CSV to Blob Storage or a database and replacing the client-side fetch in `app/page.tsx` with a server/API data source.
+Add each new dated AssetWorks export to `public/data` and redeploy. The dashboard now loads `/api/meter-data`, which automatically selects the newest CSV filename containing a `YYYY-MM-DD` date. If no dated export is present, it falls back to `public/data/meter-readings.csv`. Keep the same column headers. For a fully automated pipeline, the next step would be moving the CSV to Blob Storage or a database.
 
 ## Normalization rules
 
