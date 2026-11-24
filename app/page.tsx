@@ -5,7 +5,7 @@ import { formatDate, formatNumber, MeterReading, parseMeterCsv, toDate } from '.
 import { lookupCommercialAccount } from '../lib/account-map';
 import { lookupProperty } from '../lib/property-map';
 
-const DATA_FILE = '/data/AiM_meter_readings_2026-10-26.csv';
+const DATA_FILE = '/api/meter-data';
 
 function shortName(id: string) {
   if (!id) return 'Not assigned';
