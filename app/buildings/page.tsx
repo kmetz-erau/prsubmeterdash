@@ -71,7 +71,7 @@ export default function BuildingRankings() {
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">A</div><div><strong>AiM</strong><span>Meter intelligence</span></div></div>
         <nav><a href="/"><span>◈</span> Overview</a><a className="active" href="/buildings"><span>⌘</span> Building rankings</a><a href="/weather"><span>☼</span> Weather normalization</a><a href="/#mapping"><span>⌘</span> Buildings & accounts</a><a href="/#readings"><span>▦</span> Readings</a></nav>
-        <div className="sidebar-bottom"><div className="sync-dot" /><div><small>Data source</small><strong>AssetWorks AiM</strong><span>Synced Oct 26, 2026</span></div></div>
+        <div className="sidebar-bottom"><div className="sync-dot" /><div><small>Data source</small><strong>AssetWorks AiM</strong><span>Latest dated export</span></div></div>
       </aside>
       <section className="content">
         <header className="topbar"><div><p className="eyebrow">ANALYSIS / BUILDINGS</p><h1>Building rankings</h1></div><div className="top-actions"><span className="status-pill"><i /> Live dataset</span><a className="export-btn" href="/">← Back to overview</a></div></header>
