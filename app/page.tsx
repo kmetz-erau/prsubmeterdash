@@ -145,7 +145,7 @@ export default function Dashboard() {
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark">A</div><div><strong>AiM</strong><span>Meter intelligence</span></div></div>
         <nav><a className="active" href="#overview"><span>◈</span> Overview</a><a href="/buildings"><span>⌘</span> Building rankings</a><a href="/weather"><span>☼</span> Weather normalization</a><a href="#mapping"><span>⌘</span> Buildings & accounts</a><a href="#readings"><span>▦</span> Readings</a><a href="#meters"><span>◌</span> Meter health</a></nav>
-        <div className="sidebar-bottom"><div className="sync-dot" /> <div><small>Data source</small><strong>AssetWorks AiM</strong><span>Synced Oct 26, 2026</span></div></div>
+        <div className="sidebar-bottom"><div className="sync-dot" /> <div><small>Data source</small><strong>AssetWorks AiM</strong><span>Latest dated export</span></div></div>
       </aside>
       <section className="content">
         <header className="topbar"><div><p className="eyebrow">OPERATIONS / UTILITIES</p><h1>Meter readings</h1></div><div className="top-actions"><span className="status-pill"><i /> Live dataset</span><button className="export-btn" onClick={() => window.open(DATA_FILE, '_blank')}>↗ View source CSV</button></div></header>
