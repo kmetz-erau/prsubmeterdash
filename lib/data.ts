@@ -19,6 +19,9 @@ export type MeterReading = {
   error: string;
   previousReading?: number;
   currentReading?: number;
+  sourceNormalizedUsage?: number;
+  corrected?: boolean;
+  correctionReason?: string;
 };
 
 function splitCsvLine(line: string): string[] {
@@ -87,7 +90,7 @@ function normalizeUsage(uom: string, usage: number) {
 export function parseMeterCsv(csv: string): MeterReading[] {
   const lines = csv.split(/\r?\n/).filter(Boolean);
   if (!lines.length) return [];
-  return lines.slice(1).map((line) => {
+  const parsed = lines.slice(1).map((line) => {
     const cells = splitCsvLine(line);
     const uom = cells[1] || 'Unknown';
     const usage = numberValue(cells[10] || '');
@@ -115,6 +118,25 @@ export function parseMeterCsv(csv: string): MeterReading[] {
       invoiceDate: cells[13] || '',
       sourceUrl: cells[14] || '',
       error: cells[15] || '',
+      sourceNormalizedUsage: normalized.normalizedUsage,
+    };
+  });
+
+  // B72B has a 100,000-point rollover and a 120x multiplier. AssetWorks
+  // exports rollover intervals as false multi-million-KWH spikes. Replace
+  // those outliers with the mean of the adjacent valid B72B periods while
+  // retaining the original source value for auditability.
+  return parsed.map((row, index, allRows) => {
+    if (row.meter !== 'B72B.1' || row.normalizedUom !== 'KWH' || row.normalizedUsage <= 1_000_000) return row;
+    const neighbors = [allRows[index - 1], allRows[index + 1]]
+      .filter((neighbor): neighbor is MeterReading => Boolean(neighbor && neighbor.meter === row.meter && neighbor.normalizedUom === 'KWH' && neighbor.normalizedUsage > 0 && neighbor.normalizedUsage <= 100_000));
+    if (!neighbors.length) return row;
+    const replacement = neighbors.reduce((sum, neighbor) => sum + neighbor.normalizedUsage, 0) / neighbors.length;
+    return {
+      ...row,
+      normalizedUsage: replacement,
+      corrected: true,
+      correctionReason: 'B72B rollover outlier replaced with adjacent-period average',
     };
   });
 }
