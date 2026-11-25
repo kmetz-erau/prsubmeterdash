@@ -129,9 +129,9 @@ export function parseMeterCsv(csv: string): MeterReading[] {
   return parsed.map((row, index, allRows) => {
     if (row.meter !== 'B72B.1' || row.normalizedUom !== 'KWH' || row.normalizedUsage <= 1_000_000) return row;
     const neighbors = [allRows[index - 1], allRows[index + 1]]
-      .filter((neighbor): neighbor is MeterReading => Boolean(neighbor && neighbor.meter === row.meter && neighbor.normalizedUom === 'KWH' && neighbor.normalizedUsage > 0 && neighbor.normalizedUsage <= 100_000));
+      .filter((neighbor) => Boolean(neighbor && neighbor.meter === row.meter && neighbor.normalizedUom === 'KWH' && neighbor.normalizedUsage > 0 && neighbor.normalizedUsage <= 100_000));
     if (!neighbors.length) return row;
-    const replacement = neighbors.reduce((sum, neighbor) => sum + neighbor.normalizedUsage, 0) / neighbors.length;
+    const replacement = neighbors.reduce((sum, neighbor) => sum + (neighbor?.normalizedUsage || 0), 0) / neighbors.length;
     return {
       ...row,
       normalizedUsage: replacement,
