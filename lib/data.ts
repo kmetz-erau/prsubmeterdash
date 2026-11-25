@@ -1,112 +1,3 @@
-import { lookupMeterAsset, type MeterAsset } from './meter-map';
-
-export type MeterReading = {
-  meter: string;
-  asset?: MeterAsset;
-  uom: string;
-  normalizedUom: string;
-  normalizedUsage: number;
-  conversionFactor: number;
-  readingDate: string;
-  billingPeriod: string;
-  readerId: string;
-  description: string;
-  usage: number;
-  adjusted: boolean;
-  verified: boolean;
-  invoiceDate: string;
-  sourceUrl: string;
-  error: string;
-  previousReading?: number;
-  currentReading?: number;
-  sourceNormalizedUsage?: number;
-  corrected?: boolean;
-  correctionReason?: string;
-};
-
-function splitCsvLine(line: string): string[] {
-  const values: string[] = [];
-  let value = '';
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-    if (char === '"' && quoted && next === '"') {
-      value += '"';
-      i += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === ',' && !quoted) {
-      values.push(value);
-      value = '';
-    } else {
-      value += char;
-    }
-  }
-  values.push(value);
-  return values;
-}
-
-function numberValue(value: string) {
-  const parsed = Number(value.replace(/,/g, '').trim());
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseReadingPair(value: string, reportedUsage: number) {
-  const compact = value.replace(/,/g, '').trim();
-  if (!compact || !compact.includes('.')) return null;
-
-  const candidates: Array<{ previous: number; current: number; error: number }> = [];
-  for (let split = 1; split < compact.length; split += 1) {
-    const previous = Number(compact.slice(0, split));
-    const current = Number(compact.slice(split));
-    if (!Number.isFinite(previous) || !Number.isFinite(current) || current < previous) continue;
-    const difference = current - previous;
-    if (difference <= 0) continue;
-
-    // The export's Usage field is not consistently scaled for MWH meters.
-    // Match the displayed readings against common scale factors so the
-    // interval difference remains authoritative when it is available.
-    const scales = [1, 0.1, 0.01, 0.001, 10, 100, 1_000, 1_000_000];
-    const error = Math.min(...scales.map((scale) => Math.abs(difference - reportedUsage * scale)));
-    candidates.push({ previous, current, error });
-  }
-
-  if (!candidates.length) return null;
-  candidates.sort((left, right) => left.error - right.error);
-  const best = candidates[0];
-  return best.error < Math.max(0.000001, Math.abs(reportedUsage) * 0.000001)
-    ? { previous: best.previous, current: best.current }
-    : null;
-}
-
-function normalizeUsage(uom: string, usage: number) {
-  if (uom === 'MWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000, conversionFactor: 1_000 };
-  if (uom === 'GWH') return { normalizedUom: 'KWH', normalizedUsage: usage * 1_000_000, conversionFactor: 1_000_000 };
-  if (uom === 'CF') return { normalizedUom: 'CCF', normalizedUsage: usage / 100, conversionFactor: 0.01 };
-  return { normalizedUom: uom, normalizedUsage: usage, conversionFactor: 1 };
-}
-
-export function parseMeterCsv(csv: string): MeterReading[] {
-  const lines = csv.split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return [];
-  const parsed = lines.slice(1).map((line) => {
-    const cells = splitCsvLine(line);
-    const uom = cells[1] || 'Unknown';
-    const usage = numberValue(cells[10] || '');
-    const pair = parseReadingPair(cells[8] || '', usage);
-    const measuredUsage = pair ? pair.current - pair.previous : usage;
-    // For MWH rows with unusable combined readings, the export's Usage field
-    // is already expressed in KWH. Do not apply the MWH multiplier twice.
-    const normalized = !pair && uom === 'MWH'
-      ? { normalizedUom: 'KWH', normalizedUsage: usage, conversionFactor: 1 }
-      : normalizeUsage(uom, measuredUsage);
-    return {
-      meter: cells[0] || 'Unknown',
-      asset: lookupMeterAsset(cells[0] || ''),
-      uom,
-      ...normalized,
-      readingDate: cells[2] || '',
       billingPeriod: cells[3] || '',
       readerId: cells[5] || '',
       description: cells[7] || '',
@@ -126,7 +17,22 @@ export function parseMeterCsv(csv: string): MeterReading[] {
   // exports rollover intervals as false multi-million-KWH spikes. Replace
   // those outliers with the mean of the adjacent valid B72B periods while
   // retaining the original source value for auditability.
+  const b72bManualCorrections: Record<string, number> = {
+    'Aug 15, 2023 12:00 AM': 8_520,
+    'Sep 15, 2023 12:00 AM': 8_640,
+  };
+
   return parsed.map((row, index, allRows) => {
+    const manualCorrection = row.meter === 'B72B.1' ? b72bManualCorrections[row.readingDate] : undefined;
+    if (manualCorrection !== undefined) {
+      return {
+        ...row,
+        normalizedUsage: manualCorrection,
+        corrected: true,
+        correctionReason: 'B72B source reading correction for rollover/meter-entry error',
+      };
+    }
+
     if (row.meter !== 'B72B.1' || row.normalizedUom !== 'KWH' || row.normalizedUsage <= 1_000_000) return row;
     const neighbors = [allRows[index - 1], allRows[index + 1]]
       .filter((neighbor) => Boolean(neighbor && neighbor.meter === row.meter && neighbor.normalizedUom === 'KWH' && neighbor.normalizedUsage > 0 && neighbor.normalizedUsage <= 100_000));
