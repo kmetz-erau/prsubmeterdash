@@ -44,6 +44,8 @@ The provided property/building context is retained at `public/data/property-cont
 
 Add each new dated AssetWorks export to `public/data` and redeploy. The dashboard now loads `/api/meter-data`, which automatically selects the newest CSV filename containing a `YYYY-MM-DD` date. If no dated export is present, it falls back to `public/data/meter-readings.csv`. Keep the same column headers. For a fully automated pipeline, the next step would be moving the CSV to Blob Storage or a database.
 
+The parser also applies a documented B72B rollover correction: B72B readings above 1,000,000 KWH are treated as rollover outliers and replaced with the average of adjacent valid B72B periods. The original source value remains available as `sourceNormalizedUsage`, and the row is marked `Corrected` in the readings table.
+
 ## Normalization rules
 
 | Source unit | Dashboard unit | Factor |
